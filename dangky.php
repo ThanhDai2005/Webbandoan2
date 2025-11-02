@@ -53,7 +53,7 @@
           <div class="col-lg-6 col-md-8 col-sm-10">
             <h2 class="text-center mb-4">Đăng ký</h2>
             <?php
-            include "connect.php"; // Database connection
+            include "connect.php";
             if (isset($_POST['dangki'])) {
                 $tenkh = trim($_POST['ten'] ?? '');
                 $sdtkh = trim($_POST['sdt'] ?? '');
@@ -61,12 +61,10 @@
                 $pass = $_POST['password'] ?? '';
                 $pass1 = $_POST['password1'] ?? '';
 
-                // Validate password match
                 if ($pass !== $pass1) {
                     echo '<div class="alert alert-danger">Mật khẩu nhập lại không khớp!</div>';
                 } else {
-                    // Check if phone number already exists
-                    $sql_check = "SELECT sodienthoai FROM khachhang WHERE sodienthoai = ?";
+                    $sql_check = "SELECT SO_DIEN_THOAI FROM khachhang WHERE SO_DIEN_THOAI = ?";
                     $stmt_check = $conn->prepare($sql_check);
                     $stmt_check->bind_param("s", $sdtkh);
                     $stmt_check->execute();
@@ -75,15 +73,15 @@
                     if ($result_check->num_rows > 0) {
                         echo '<div class="alert alert-danger">Số điện thoại đã được đăng ký!</div>';
                     } else {
-                        // Insert new user
-                        $sql = "INSERT INTO khachhang (tenkh, matkhau, diachi, sodienthoai) VALUES (?, ?, ?, ?)";
+                        $sql = "INSERT INTO khachhang (TEN_KH, MAT_KHAU, DIA_CHI, SO_DIEN_THOAI, NGAY_TAO) 
+                                VALUES (?, ?, ?, ?, CURDATE())";
                         $stmt = $conn->prepare($sql);
                         $stmt->bind_param("ssss", $tenkh, $pass, $diachikh, $sdtkh);
 
                         if ($stmt->execute()) {
                             $_SESSION['mySession'] = $tenkh;
-                            $_SESSION['makh'] = $conn->insert_id; // Get the newly created user ID
-                            header("Location: login.php");
+                            $_SESSION['makh'] = $conn->insert_id;
+                            header("Location: dangnhap.php");
                             exit();
                         } else {
                             echo '<div class="alert alert-danger">Đăng ký thất bại: ' . $stmt->error . '</div>';
@@ -95,85 +93,47 @@
                 $conn->close();
             }
             ?>
+
             <form method="post">
               <div class="form-group">
                 <label for="ten">Tên đầy đủ</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Nhập tên đầy đủ"
-                  name="ten"
-                  id="ten"
-                  required
-                />
+                <input type="text" class="form-control" placeholder="Nhập tên đầy đủ" name="ten" id="ten" required />
               </div>
+
               <div class="form-group">
                 <label for="sdt">Số điện thoại</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Nhập số điện thoại"
-                  name="sdt"
-                  id="sdt"
-                  required
-                />
+                <input type="text" class="form-control" placeholder="Nhập số điện thoại" name="sdt" id="sdt" required />
               </div>
+
               <div class="form-group">
                 <label for="diachi">Địa chỉ</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Nhập địa chỉ"
-                  name="diachi"
-                  id="diachi"
-                  required
-                />
+                <input type="text" class="form-control" placeholder="Nhập địa chỉ" name="diachi" id="diachi" required />
               </div>
+
               <div class="form-group position-relative">
                 <label for="password">Mật khẩu</label>
-                <input
-                  type="password"
-                  class="form-control"
-                  placeholder="Nhập mật khẩu"
-                  name="password"
-                  id="password"
-                  required
-                />
-                <button
-                  type="button"
-                  class="btn position-absolute"
+                <input type="password" class="form-control" placeholder="Nhập mật khẩu" name="password" id="password" required />
+                <button type="button" class="btn position-absolute"
                   style="right: 0px; top: 73%; transform: translateY(-50%);"
-                  onclick="togglePassword('password', 'toggleIcon')"
-                >
+                  onclick="togglePassword('password', 'toggleIcon')">
                   <i class="fa-solid fa-eye" id="toggleIcon"></i>
                 </button>
               </div>
+
               <div class="form-group position-relative">
                 <label for="password1">Nhập lại mật khẩu</label>
-                <input
-                  type="password"
-                  class="form-control"
-                  placeholder="Nhập lại mật khẩu"
-                  name="password1"
-                  id="password1"
-                  required
-                />
-                <button
-                  type="button"
-                  class="btn position-absolute"
+                <input type="password" class="form-control" placeholder="Nhập lại mật khẩu" name="password1" id="password1" required />
+                <button type="button" class="btn position-absolute"
                   style="right: 0px; top: 73%; transform: translateY(-50%);"
-                  onclick="togglePassword('password1', 'toggleIcon1')"
-                >
+                  onclick="togglePassword('password1', 'toggleIcon1')">
                   <i class="fa-solid fa-eye" id="toggleIcon1"></i>
                 </button>
               </div>
-              <button
-                type="submit"
-                name="dangki"
-                class="btn btn-block text-uppercase font-weight-bold"
-              >
+
+              <button type="submit" name="dangki" class="btn btn-block text-uppercase font-weight-bold">
                 Đăng ký
               </button>
+
               <div class="text-center mt-3">
                 <span>Bạn đã có tài khoản?</span>
                 <a href="dangnhap.php" class="d-block text-primary">Đăng nhập tại đây</a>
@@ -183,12 +143,8 @@
         </div>
       </div>
     </div>
-    <!-- End Register Form -->
 
-    <!-- Footer -->
-    <?php
-    include_once "includes/footer.php";
-    ?>
+    <?php include_once "includes/footer.php"; ?>
     <!-- Close Footer -->
 
     <!-- Bootstrap JS and dependencies -->

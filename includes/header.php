@@ -98,13 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     <div class="container">
         <ul class="menu-list">
             <li class="menu-list-item"><a href="index.php" class="menu-link">Trang chủ</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Món chay#scroll" class="menu-link">Món chay</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Món mặn#scroll" class="menu-link">Món mặn</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Món lẩu#scroll" class="menu-link">Món lẩu</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Món ăn vặt#scroll" class="menu-link">Món ăn vặt</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Món tráng miệng#scroll" class="menu-link">Món tráng miệng</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Nước uống#scroll" class="menu-link">Nước uống</a></li>
-            <li class="menu-list-item"><a href="index.php?Type=Hải sản#scroll" class="menu-link">Hải sản</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L001#scroll" class="menu-link">Món chay</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L002#scroll" class="menu-link">Món mặn</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L003#scroll" class="menu-link">Món lẩu</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L004#scroll" class="menu-link">Món ăn vặt</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L005#scroll" class="menu-link">Món tráng miệng</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L006#scroll" class="menu-link">Nước uống</a></li>
+            <li class="menu-list-item"><a href="index.php?Type=L007#scroll" class="menu-link">Hải sản</a></li>
         </ul>
     </div>
 </nav>
@@ -113,16 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     <form id="advanced-search-form" method="GET" action="index.php" class="container">
         <div class="advanced-search-category">
             <span>Phân loại</span>
-            <select id="advanced-search-category-select" name="category">
-                <option value="">Tất cả</option>
-                <option value="món chay" <?php echo ($category == 'món chay') ? 'selected' : ''; ?>>Món chay</option>
-                <option value="món mặn" <?php echo ($category == 'món mặn') ? 'selected' : ''; ?>>Món mặn</option>
-                <option value="món lẩu" <?php echo ($category == 'món lẩu') ? 'selected' : ''; ?>>Món lẩu</option>
-                <option value="món ăn vặt" <?php echo ($category == 'món ăn vặt') ? 'selected' : ''; ?>>Món ăn vặt</option>
-                <option value="món tráng miệng" <?php echo ($category == 'món tráng miệng') ? 'selected' : ''; ?>>Món tráng miệng</option>
-                <option value="nước uống" <?php echo ($category == 'nước uống') ? 'selected' : ''; ?>>Nước uống</option>
-                <option value="hải sản" <?php echo ($category == 'hải sản') ? 'selected' : ''; ?>>Hải sản</option>
-            </select>
+<select id="advanced-search-category-select" name="category">
+    <option value="">Tất cả</option>
+    <option value="L001" <?php echo ($category == 'L001') ? 'selected' : ''; ?>>Món chay</option>
+    <option value="L002" <?php echo ($category == 'L002') ? 'selected' : ''; ?>>Món mặn</option>
+    <option value="L003" <?php echo ($category == 'L003') ? 'selected' : ''; ?>>Món lẩu</option>
+    <option value="L004" <?php echo ($category == 'L004') ? 'selected' : ''; ?>>Món ăn vặt</option>
+    <option value="L005" <?php echo ($category == 'L005') ? 'selected' : ''; ?>>Món tráng miệng</option>
+    <option value="L006" <?php echo ($category == 'L006') ? 'selected' : ''; ?>>Nước uống</option>
+    <option value="L007" <?php echo ($category == 'L007') ? 'selected' : ''; ?>>Hải sản</option>
+</select>
         </div>
         <div class="advanced-search-price">
             <span>Giá từ</span>

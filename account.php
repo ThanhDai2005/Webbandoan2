@@ -43,7 +43,7 @@
             }
 
             // Cập nhật thông tin
-            $sql = "UPDATE khachhang SET tenkh = ?, diachi = ? WHERE sodienthoai = ?";
+            $sql = "UPDATE khachhang SET TEN_KH = ?, DIA_CHI = ? WHERE SO_DIEN_THOAI = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("sss", $name, $diachi, $sodienthoai);
 
@@ -67,7 +67,7 @@
             }
 
             // Kiểm tra mật khẩu hiện tại
-            $sql = "SELECT matkhau FROM khachhang WHERE sodienthoai = ?";
+            $sql = "SELECT MAT_KHAU FROM khachhang WHERE SO_DIEN_THOAI = ?";
             $stmt = $conn->prepare($sql);
             $stmt->bind_param("s", $sodienthoai);
             $stmt->execute();
@@ -75,9 +75,9 @@
 
             if ($result->num_rows == 1) {
                 $row = $result->fetch_assoc();
-                if ($currentPassword === $row['matkhau']) {
+                if ($currentPassword === $row['MAT_KHAU']) {
                     // Cập nhật mật khẩu mới
-                    $sql_update = "UPDATE khachhang SET matkhau = ? WHERE sodienthoai = ?";
+                    $sql_update = "UPDATE khachhang SET MAT_KHAU = ? WHERE SO_DIEN_THOAI = ?";
                     $stmt_update = $conn->prepare($sql_update);
                     $stmt_update->bind_param("ss", $newPassword, $sodienthoai);
 
@@ -103,7 +103,7 @@
 
     // Lấy thông tin người dùng
     $phone = $_SESSION['sodienthoai'];
-    $sql = "SELECT * FROM khachhang WHERE sodienthoai = ?";
+    $sql = "SELECT * FROM khachhang WHERE SO_DIEN_THOAI = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $phone);
     $stmt->execute();
@@ -139,15 +139,15 @@
                     <div class="col-xl-6 col-lg-6 col-md-6 col-sm-12 col-12">
                         <div class="form-group">
                             <label for="name1">Họ và tên</label>
-                            <input type="text" id="name1" class="form-control" value="<?php echo htmlspecialchars($row['tenkh']); ?>" />
+                            <input type="text" id="name1" class="form-control" value="<?php echo htmlspecialchars($row['TEN_KH']); ?>" />
                         </div>
                         <div class="form-group">
                             <label for="phone">Số điện thoại</label>
-                            <input type="text" id="phone" class="form-control" value="<?php echo htmlspecialchars($row['sodienthoai']); ?>" disabled />
+                            <input type="text" id="phone" class="form-control" value="<?php echo htmlspecialchars($row['SO_DIEN_THOAI']); ?>" disabled />
                         </div>
                         <div class="form-group">
                             <label for="diachi">Địa chỉ</label>
-                            <input type="text" id="diachi" class="form-control" value="<?php echo htmlspecialchars($row['diachi']); ?>" />
+                            <input type="text" id="diachi" class="form-control" value="<?php echo htmlspecialchars($row['DIA_CHI']); ?>" />
                         </div>
                         <button type="button" class="button" onclick="capNhat()">
                             <i class="fa-regular fa-floppy-disk"></i> Lưu thay đổi
@@ -210,7 +210,7 @@
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             xhr.onreadystatechange = function () {
                 if (xhr.readyState == 4 && xhr.status == 200) {
-                    alert("Cập nhật thông tin thành công !");
+                    alert("Cập nhật thông tin thành công!");
                 }
             };
             xhr.send("action=update&name=" + encodeURIComponent(name) + "&diachi=" + encodeURIComponent(diachi));
@@ -238,7 +238,7 @@
             xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             xhr.onreadystatechange = function () {
                 if (xhr.readyState == 4 && xhr.status == 200) {
-                    alert("Đổi mật khẩu thành công !");
+                    alert("Đổi mật khẩu thành công!");
                     // Xóa các trường nhập liệu sau khi đổi mật khẩu thành công
                     if (xhr.responseText.includes("thành công")) {
                         document.getElementById('mk1').value = '';

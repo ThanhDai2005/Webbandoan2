@@ -20,45 +20,45 @@ $sort = isset($_GET['sort']) ? $_GET['sort'] : '';
 $Type = isset($_GET['Type']) ? trim($_GET['Type']) : '';
 
 // Xây dựng truy vấn SQL
-$sql = "SELECT * FROM sanpham WHERE Visible = 1";
+$sql = "SELECT MA_SP, TEN_SP, GIA_CA, HINH_ANH, MA_LOAISP FROM sanpham WHERE TINH_TRANG = 1";
 $params = [];
 $types = "";
 
 // Thêm điều kiện tìm kiếm theo từ khóa
 if (!empty($keyword)) {
-    $sql .= " AND Name LIKE ?";
+    $sql .= " AND TEN_SP LIKE ?";
     $params[] = "%$keyword%";
     $types .= "s";
 }
 
-// Thêm điều kiện tìm kiếm theo danh mục (từ advanced search hoặc navigation)
+// Thêm điều kiện tìm kiếm theo danh mục
 if (!empty($category)) {
-    $sql .= " AND Type = ?";
+    $sql .= " AND MA_LOAISP = ?";
     $params[] = $category;
     $types .= "s";
 } elseif (!empty($Type)) {
-    $sql .= " AND Type = ?";
+    $sql .= " AND MA_LOAISP = ?";
     $params[] = $Type;
     $types .= "s";
 }
 
 // Thêm điều kiện tìm kiếm theo giá
 if ($min_price !== '' && is_numeric($min_price)) {
-    $sql .= " AND Price >= ?";
+    $sql .= " AND GIA_CA >= ?";
     $params[] = (int)$min_price;
     $types .= "i";
 }
 if ($max_price !== '' && is_numeric($max_price)) {
-    $sql .= " AND Price <= ?";
+    $sql .= " AND GIA_CA <= ?";
     $params[] = (int)$max_price;
     $types .= "i";
 }
 
 // Thêm sắp xếp
 if ($sort === 'asc') {
-    $sql .= " ORDER BY Price ASC";
+    $sql .= " ORDER BY GIA_CA ASC";
 } elseif ($sort === 'desc') {
-    $sql .= " ORDER BY Price DESC";
+    $sql .= " ORDER BY GIA_CA DESC";
 }
 
 // Thêm phân trang
@@ -69,6 +69,9 @@ $types .= "ii";
 
 // Chuẩn bị và thực thi truy vấn
 $stmt = $conn->prepare($sql);
+if ($stmt === false) {
+    die("Lỗi prepare: " . $conn->error);
+}
 if (!empty($params)) {
     $stmt->bind_param($types, ...$params);
 }
@@ -76,36 +79,39 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 // Lấy tổng số sản phẩm để tính tổng số trang
-$total_sql = "SELECT COUNT(*) as total FROM sanpham WHERE Visible = 1";
+$total_sql = "SELECT COUNT(*) as total FROM sanpham WHERE TINH_TRANG = 1";
 $total_params = [];
 $total_types = "";
 
 if (!empty($keyword)) {
-    $total_sql .= " AND Name LIKE ?";
+    $total_sql .= " AND TEN_SP LIKE ?";
     $total_params[] = "%$keyword%";
     $total_types .= "s";
 }
 if (!empty($category)) {
-    $total_sql .= " AND Type = ?";
+    $total_sql .= " AND MA_LOAISP = ?";
     $total_params[] = $category;
     $total_types .= "s";
 } elseif (!empty($Type)) {
-    $total_sql .= " AND Type = ?";
+    $total_sql .= " AND MA_LOAISP = ?";
     $total_params[] = $Type;
     $total_types .= "s";
 }
 if ($min_price !== '' && is_numeric($min_price)) {
-    $total_sql .= " AND Price >= ?";
+    $total_sql .= " AND GIA_CA >= ?";
     $total_params[] = (int)$min_price;
     $total_types .= "i";
 }
 if ($max_price !== '' && is_numeric($max_price)) {
-    $total_sql .= " AND Price <= ?";
+    $total_sql .= " AND GIA_CA <= ?";
     $total_params[] = (int)$max_price;
     $total_types .= "i";
 }
 
 $total_stmt = $conn->prepare($total_sql);
+if ($total_stmt === false) {
+    die("Lỗi prepare total: " . $conn->error);
+}
 if (!empty($total_params)) {
     $total_stmt->bind_param($total_types, ...$total_params);
 }
@@ -212,13 +218,13 @@ $is_search = !empty($keyword) || !empty($category) || !empty($Type) || $min_pric
                     <?php while ($row = $result->fetch_assoc()): ?>
                         <div class="col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12">
                             <div class="inner-item">
-                                <a href="chitietsp.php?id=<?= $row['ID']; ?>" class="inner-img">
-                                    <img src="<?= htmlspecialchars($row['Image']); ?>" />
+                                <a href="chitietsp.php?id=<?= $row['MA_SP']; ?>" class="inner-img">
+                                    <img src="<?= htmlspecialchars($row['HINH_ANH']); ?>" />
                                 </a>
                                 <div class="inner-info">
-                                    <div class="inner-ten"><?= htmlspecialchars($row['Name']); ?></div>
-                                    <div class="inner-gia"><?= number_format($row['Price'], 0, '.', '.'); ?>₫</div>
-                                    <a href="chitietsp.php?id=<?= $row['ID']; ?>" class="inner-muahang">
+                                    <div class="inner-ten"><?= htmlspecialchars($row['TEN_SP']); ?></div>
+                                    <div class="inner-gia"><?= number_format($row['GIA_CA'], 0, '.', '.'); ?>₫</div>
+                                    <a href="chitietsp.php?id=<?= $row['MA_SP']; ?>" class="inner-muahang">
                                         <i class="fa-solid fa-cart-plus"></i> ĐẶT MÓN
                                     </a>
                                 </div>

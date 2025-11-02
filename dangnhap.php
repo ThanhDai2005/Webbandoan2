@@ -48,95 +48,72 @@
 
 <!-- Login Form -->
 <div class="login">
-  <div class="container">
-    <div class="row justify-content-center">
-      <div class="col-lg-6 col-md-8 col-sm-10">
-        <h2 class="text-center mb-4">Đăng nhập</h2>
-        <form method="post">
-          <div class="form-group">
-            <label for="sdt">Số điện thoại</label>
-            <input
-              type="text"
-              class="form-control"
-              placeholder="Nhập số điện thoại"
-              name="sdt"
-              id="sdt"
-              required
-            />
-          </div>
-          <div class="form-group position-relative">
-            <label for="password">Mật khẩu</label>
-            <input
-              type="password"
-              class="form-control"
-              placeholder="Nhập mật khẩu"
-              name="password"
-              id="password"
-              required
-            />
-            <button
-              type="button"
-              class="btn position-absolute"
-              style="right: 0px; top: 73%; transform: translateY(-50%);"
-              onclick="togglePassword()"
-            >
-              <i class="fa-solid fa-eye" id="toggleIcon"></i>
-            </button>
-          </div>
-          <?php
-          if (isset($_POST['dangnhap'])) {
-              include "connect.php";
-              $phonenumber = $_POST['sdt'];
-              $password = $_POST['password'];
-              $sql = "SELECT * FROM khachhang WHERE sodienthoai = ? AND matkhau = ?";
-              $stmt = $conn->prepare($sql);
-              $stmt->bind_param("ss", $phonenumber, $password);
-              $stmt->execute();
-              $result = $stmt->get_result();
-              if ($result->num_rows == 1) {
-                  $row = $result->fetch_assoc();
-                  // Kiểm tra trạng thái tài khoản
-                  if ($row['trangthai'] == 'Locked') {
-                      echo '<div class="alert alert-danger">Tài khoản đã bị khóa</div>';
-                  } elseif ($row['trangthai'] == 'Active') {
-                      // Thiết lập tất cả các biến phiên cần thiết
-                      $_SESSION['sodienthoai'] = $row['sodienthoai'];
-                      $_SESSION['mySession'] = $row['tenkh'];
-                      $_SESSION['makh'] = $row['makh'];
-                      header("Location: login.php"); // Chuyển hướng đến trang chính
-                      exit();
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-lg-6 col-md-8 col-sm-10">
+            <h2 class="text-center mb-4">Đăng nhập</h2>
+            <form method="post">
+              <div class="form-group">
+                <label for="sdt">Số điện thoại</label>
+                <input type="text" class="form-control" placeholder="Nhập số điện thoại" name="sdt" id="sdt" required />
+              </div>
+
+              <div class="form-group position-relative">
+                <label for="password">Mật khẩu</label>
+                <input type="password" class="form-control" placeholder="Nhập mật khẩu" name="password" id="password" required />
+                <button type="button" class="btn position-absolute"
+                  style="right: 0px; top: 73%; transform: translateY(-50%);"
+                  onclick="togglePassword()">
+                  <i class="fa-solid fa-eye" id="toggleIcon"></i>
+                </button>
+              </div>
+
+              <?php
+              if (isset($_POST['dangnhap'])) {
+                  include "connect.php";
+                  $phonenumber = $_POST['sdt'];
+                  $password = $_POST['password'];
+                  
+                  $sql = "SELECT * FROM khachhang WHERE SO_DIEN_THOAI = ? AND MAT_KHAU = ?";
+                  $stmt = $conn->prepare($sql);
+                  $stmt->bind_param("ss", $phonenumber, $password);
+                  $stmt->execute();
+                  $result = $stmt->get_result();
+
+                  if ($result->num_rows == 1) {
+                      $row = $result->fetch_assoc();
+                      if ($row['TRANG_THAI'] == 'Locked') {
+                          echo '<div class="alert alert-danger">Tài khoản đã bị khóa</div>';
+                      } elseif ($row['TRANG_THAI'] == 'Active') {
+                          $_SESSION['sodienthoai'] = $row['SO_DIEN_THOAI'];
+                          $_SESSION['mySession'] = $row['TEN_KH'];
+                          $_SESSION['makh'] = $row['MA_KH'];
+                          header("Location: login.php");
+                          exit();
+                      }
                   } else {
-                      echo '<div class="alert alert-danger">Trạng thái tài khoản không hợp lệ</div>';
+                      echo '<div class="alert alert-danger">Sai tài khoản hoặc mật khẩu</div>';
                   }
-              } else {
-                  echo '<div class="alert alert-danger">Sai tài khoản hoặc mật khẩu</div>';
+                  $stmt->close();
+                  $conn->close();
               }
-              $stmt->close();
-              $conn->close();
-          }
-          ?>
-          <button
-            type="submit"
-            name="dangnhap"
-            class="btn btn-block text-uppercase font-weight-bold"
-          >
-            Đăng nhập
-          </button>
-          <div class="text-center mt-3">
-            <span>Bạn chưa có tài khoản?</span>
-            <a href="dangky.php" class="d-block text-primary">Đăng ký tại đây</a>
+              ?>
+
+              <button type="submit" name="dangnhap" class="btn btn-block text-uppercase font-weight-bold">
+                Đăng nhập
+              </button>
+
+              <div class="text-center mt-3">
+                <span>Bạn chưa có tài khoản?</span>
+                <a href="dangky.php" class="d-block text-primary">Đăng ký tại đây</a>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-<!-- End Login Form -->
 
-    <!-- Footer -->
-    <?php
-    include_once "includes/footer.php";
-    ?>
+    <?php include_once "includes/footer.php"; ?>
     <!-- Close Footer -->
 
     <!-- Bootstrap JS and dependencies -->
