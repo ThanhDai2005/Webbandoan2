@@ -97,240 +97,184 @@
     </div>
 <!-- End Service -->
     <?php
-include "connect.php";
-
 // Số sản phẩm trên mỗi trang
 $limit = 12;
 
-// Trang hiện tại (mặc định là 1)
+// Trang hiện tại
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $page = max($page, 1);
-
-// Tính OFFSET
 $offset = ($page - 1) * $limit;
 
-// Lấy danh sách sản phẩm phân trang
-$stmt = $conn->prepare("SELECT * FROM sanpham LIMIT ? OFFSET ?");
-$stmt->bind_param("ii", $limit, $offset);
+// Nhận tham số tìm kiếm
+$keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
+$category = isset($_GET['category']) ? trim($_GET['category']) : '';
+$min_price = isset($_GET['min_price']) && is_numeric($_GET['min_price']) ? (int)$_GET['min_price'] : '';
+$max_price = isset($_GET['max_price']) && is_numeric($_GET['max_price']) ? (int)$_GET['max_price'] : '';
+$sort = isset($_GET['sort']) ? $_GET['sort'] : '';
+$Type = isset($_GET['Type']) ? trim($_GET['Type']) : '';
+
+// Xây dựng truy vấn
+$sql = "SELECT * FROM sanpham WHERE TINH_TRANG = 1";
+$params = [];
+$types = "";
+
+// Tìm kiếm theo tên
+if (!empty($keyword)) {
+    $sql .= " AND TEN_SP LIKE ?";
+    $params[] = "%$keyword%";
+    $types .= "s";
+}
+
+// Tìm kiếm theo loại
+if (!empty($category)) {
+    $sql .= " AND MA_LOAISP = ?";
+    $params[] = $category;
+    $types .= "s";
+} elseif (!empty($Type)) {
+    $sql .= " AND MA_LOAISP = ?";
+    $params[] = $Type;
+    $types .= "s";
+}
+
+// Lọc theo giá
+if ($min_price !== '') {
+    $sql .= " AND GIA_CA >= ?";
+    $params[] = $min_price;
+    $types .= "i";
+}
+if ($max_price !== '') {
+    $sql .= " AND GIA_CA <= ?";
+    $params[] = $max_price;
+    $types .= "i";
+}
+
+// Sắp xếp
+if ($sort === 'asc') {
+    $sql .= " ORDER BY GIA_CA ASC";
+} elseif ($sort === 'desc') {
+    $sql .= " ORDER BY GIA_CA DESC";
+}
+
+// Phân trang
+$sql .= " LIMIT ? OFFSET ?";
+$params[] = $limit;
+$params[] = $offset;
+$types .= "ii";
+
+// Thực thi
+$stmt = $conn->prepare($sql);
+if (!empty($params)) {
+    $stmt->bind_param($types, ...$params);
+}
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Lấy tổng số sản phẩm để tính tổng số trang
-$total_result = $conn->query("SELECT COUNT(*) as total FROM sanpham");
+// Lấy tổng sản phẩm
+$total_sql = "SELECT COUNT(*) as total FROM sanpham WHERE TINH_TRANG = 1";
+$total_params = [];
+$total_types = "";
+
+if (!empty($keyword)) {
+    $total_sql .= " AND TEN_SP LIKE ?";
+    $total_params[] = "%$keyword%";
+    $total_types .= "s";
+}
+if (!empty($category)) {
+    $total_sql .= " AND MA_LOAISP = ?";
+    $total_params[] = $category;
+    $total_types .= "s";
+} elseif (!empty($Type)) {
+    $total_sql .= " AND MA_LOAISP = ?";
+    $total_params[] = $Type;
+    $total_types .= "s";
+}
+if ($min_price !== '') {
+    $total_sql .= " AND GIA_CA >= ?";
+    $total_params[] = $min_price;
+    $total_types .= "i";
+}
+if ($max_price !== '') {
+    $total_sql .= " AND GIA_CA <= ?";
+    $total_params[] = $max_price;
+    $total_types .= "i";
+}
+
+$total_stmt = $conn->prepare($total_sql);
+if (!empty($total_params)) {
+    $total_stmt->bind_param($total_types, ...$total_params);
+}
+$total_stmt->execute();
+$total_result = $total_stmt->get_result();
 $total_row = $total_result->fetch_assoc();
 $total_products = $total_row['total'];
 $total_pages = ($total_products > 0) ? ceil($total_products / $limit) : 1;
+
+$is_search = !empty($keyword) || !empty($category) || !empty($Type) || $min_price !== '' || $max_price !== '';
 ?>
 
-
-      <!-- Products -->
-    <?php
-    // Số sản phẩm trên mỗi trang
-    $limit = 12;
-
-    // Trang hiện tại (mặc định là 1)
-    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-    $page = max($page, 1);
-
-    // Tính OFFSET
-    $offset = ($page - 1) * $limit;
-
-    // Lấy tham số tìm kiếm
-    $keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
-    $category = isset($_GET['category']) ? trim($_GET['category']) : '';
-    $min_price = isset($_GET['min_price']) && is_numeric($_GET['min_price']) ? (int)$_GET['min_price'] : '';
-    $max_price = isset($_GET['max_price']) && is_numeric($_GET['max_price']) ? (int)$_GET['max_price'] : '';
-    $sort = isset($_GET['sort']) ? $_GET['sort'] : '';
-    $Type = isset($_GET['Type']) ? trim($_GET['Type']) : '';
-
-    // Debug: Log received parameters
-    /*
-    echo "<pre>";
-    echo "Keyword: " . htmlspecialchars($keyword) . "\n";
-    echo "Category: " . htmlspecialchars($category) . "\n";
-    echo "Type: " . htmlspecialchars($Type) . "\n";
-    echo "Min Price: " . htmlspecialchars($min_price) . "\n";
-    echo "Max Price: " . htmlspecialchars($max_price) . "\n";
-    echo "Sort: " . htmlspecialchars($sort) . "\n";
-    echo "</pre>";
-    */
-
-    // Xây dựng truy vấn SQL
-    $sql = "SELECT * FROM sanpham WHERE Visible = 1";     $params = [];
-    $types = "";
-
-    // Thêm điều kiện tìm kiếm theo từ khóa
-    if (!empty($keyword)) {
-        $sql .= " AND Name LIKE ?";
-        $params[] = "%$keyword%";
-        $types .= "s";
-    }
-
-    // Thêm điều kiện tìm kiếm theo danh mục (từ advanced search hoặc navigation)
-    if (!empty($category)) {
-        $sql .= " AND Type = ?";
-        $params[] = $category;
-        $types .= "s";
-    } elseif (!empty($Type)) {
-        $sql .= " AND Type = ?";
-        $params[] = $Type;
-        $types .= "s";
-    }
-
-    // Thêm điều kiện tìm kiếm theo giá
-    if ($min_price !== '') {
-        $sql .= " AND Price >= ?";
-        $params[] = $min_price;
-        $types .= "i";
-    }
-    if ($max_price !== '') {
-        $sql .= " AND Price <= ?";
-        $params[] = $max_price;
-        $types .= "i";
-    }
-
-    // Thêm sắp xếp
-    if ($sort === 'asc') {
-        $sql .= " ORDER BY Price ASC";
-    } elseif ($sort === 'desc') {
-        $sql .= " ORDER BY Price DESC";
-    }
-
-    // Thêm phân trang
-    $sql .= " LIMIT ? OFFSET ?";
-    $params[] = $limit;
-    $params[] = $offset;
-    $types .= "ii";
-
-    // Chuẩn bị và thực thi truy vấn
-    $stmt = $conn->prepare($sql);
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    // Lấy tổng số sản phẩm để tính tổng số trang
-    $total_sql = "SELECT COUNT(*) as total FROM sanpham WHERE Visible = 1";    $total_params = [];
-    $total_params = [];
-    $total_types = "";
-
-    if (!empty($keyword)) {
-        $total_sql .= " AND Name LIKE ?";
-        $total_params[] = "%$keyword%";
-        $total_types .= "s";
-    }
-    if (!empty($category)) {
-        $total_sql .= " AND Type = ?";
-        $total_params[] = $category;
-        $total_types .= "s";
-    } elseif (!empty($Type)) {
-        $total_sql .= " AND Type = ?";
-        $total_params[] = $Type;
-        $total_types .= "s";
-    }
-    if ($min_price !== '') {
-        $total_sql .= " AND Price >= ?";
-        $total_params[] = $min_price;
-        $total_types .= "i";
-    }
-    if ($max_price !== '') {
-        $total_sql .= " AND Price <= ?";
-        $total_params[] = $max_price;
-        $total_types .= "i";
-    }
-
-    $total_stmt = $conn->prepare($total_sql);
-    if (!empty($total_params)) {
-        $total_stmt->bind_param($total_types, ...$total_params);
-    }
-    $total_stmt->execute();
-    $total_result = $total_stmt->get_result();
-    $total_row = $total_result->fetch_assoc();
-    $total_products = $total_row['total'];
-    $total_pages = ($total_products > 0) ? ceil($total_products / $limit) : 1;
-
-    // Kiểm    // Kiểm tra xem có phải là kết quả tìm kiếm không
-    $is_search = !empty($keyword) || !empty($category) || !empty($Type) || $min_price !== '' || $max_price !== '';
-    ?>
-
-    <div class="Products" id="product-list">
-        <div class="container">
-            <div class="row">
-                <?php if ($total_products > 0): ?>
-                    <div class="col-xl-12">
-                        <div class="inner-title">
-                            <?php echo $is_search ? 'Kết quả tìm kiếm' : 'Khám phá thực đơn của chúng tôi'; ?>
-                        </div>
-                    </div>
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <div class="col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12">
-                            <div class="inner-item">
-                                <a href="chitietsp-login.php?id=<?= $row['ID']; ?>" class="inner-img">
-                                    <img src="<?= htmlspecialchars($row['Image']); ?>" />
-                                </a>
-                                <div class="inner-info">
-                                    <div class="inner-ten"><?= htmlspecialchars($row['Name']); ?></div>
-                                    <div class="inner-gia"><?= number_format($row['Price'], 0, ',', '.'); ?>₫</div>
-                                    <a href="chitietsp-login.php?id=<?= $row['ID']; ?>" class="inner-muahang">
-                                        <i class="fa-solid fa-cart-plus"></i> ĐẶT MÓN
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="col-xl-12">
-                        <div class="home-products" id="home-products">
-                            <div class="no-result">
-                                <div class="no-result-h">Tìm kiếm không có kết quả</div>
-                                <div class="no-result-p">Xin lỗi, chúng tôi không thể tìm được kết quả hợp với tìm kiếm của bạn</div>
-                                <div class="no-result-i"><i class="fa-light fa-face-sad-cry"></i></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
+<div class="Products" id="product-list">
+  <div class="container">
+    <div class="row">
+      <?php if ($total_products > 0): ?>
+        <div class="col-xl-12">
+          <div class="inner-title">
+            <?= $is_search ? 'Kết quả tìm kiếm' : 'Khám phá thực đơn của chúng tôi'; ?>
+          </div>
+        </div>
+        <?php while ($row = $result->fetch_assoc()): ?>
+          <div class="col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12">
+            <div class="inner-item">
+              <a href="chitietsp-login.php?id=<?= $row['MA_SP']; ?>" class="inner-img">
+                <img src="<?= htmlspecialchars($row['HINH_ANH']); ?>" />
+              </a>
+              <div class="inner-info">
+                <div class="inner-ten"><?= htmlspecialchars($row['TEN_SP']); ?></div>
+                <div class="inner-gia"><?= number_format($row['GIA_CA'], 0, ',', '.'); ?>₫</div>
+                <a href="chitietsp-login.php?id=<?= $row['MA_SP']; ?>" class="inner-muahang">
+                  <i class="fa-solid fa-cart-plus"></i> ĐẶT MÓN
+                </a>
+              </div>
             </div>
+          </div>
+        <?php endwhile; ?>
+      <?php else: ?>
+        <div class="col-xl-12">
+          <div class="no-result">
+            <div class="no-result-h">Không tìm thấy sản phẩm</div>
+            <div class="no-result-p">Rất tiếc, không có kết quả nào phù hợp với tìm kiếm của bạn.</div>
+            <div class="no-result-i"><i class="fa-light fa-face-sad-cry"></i></div>
+          </div>
         </div>
+      <?php endif; ?>
     </div>
+  </div>
+</div>
 
-    <!-- Phân trang -->
-    <div id="pagination" class="Pagination">
-        <div class="container">
-            <ul>
-                <?php
-                // Tạo URL cơ bản với các tham số tìm kiếm
-                $base_url = 'login.php?';
-                $url_params = [];
-                if (!empty($keyword)) {
-                    $url_params[] = 'keyword=' . urlencode($keyword);
-                }
-                if (!empty($category)) {
-                    $url_params[] = 'category=' . urlencode($category);
-                }
-                if (!empty($Type)) {
-                    $url_params[] = 'Type=' . urlencode($Type);
-                }
-                if ($min_price !== '') {
-                    $url_params[] = 'min_price=' . $min_price;
-                }
-                if ($max_price !== '') {
-                    $url_params[] = 'max_price=' . $max_price;
-                }
-                if (!empty($sort)) {
-                    $url_params[] = 'sort=' . $sort;
-                }
-                $base_url .= implode('&', $url_params);
+<!-- Phân trang -->
+<div id="pagination" class="Pagination">
+  <div class="container">
+    <ul>
+      <?php
+      $base_url = 'login.php?';
+      $url_params = [];
+      if (!empty($keyword)) $url_params[] = 'keyword=' . urlencode($keyword);
+      if (!empty($category)) $url_params[] = 'category=' . urlencode($category);
+      if (!empty($Type)) $url_params[] = 'Type=' . urlencode($Type);
+      if ($min_price !== '') $url_params[] = 'min_price=' . $min_price;
+      if ($max_price !== '') $url_params[] = 'max_price=' . $max_price;
+      if (!empty($sort)) $url_params[] = 'sort=' . $sort;
 
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $active_class = ($i == $page) ? 'trang-chinh' : '';
-                    $page_url = $base_url . (empty($url_params) ? '' : '&') . 'page=' . $i;
-                    echo '<li><a href="' . htmlspecialchars($page_url) . '" class="inner-trang ' . $active_class . '">' . $i . '</a></li>';
-                }
-                ?>
-            </ul>
-        </div>
-    </div>
+      $base_url .= implode('&', $url_params);
+
+      for ($i = 1; $i <= $total_pages; $i++) {
+          $active_class = ($i == $page) ? 'trang-chinh' : '';
+          $page_url = $base_url . (empty($url_params) ? '' : '&') . 'page=' . $i;
+          echo '<li><a href="' . htmlspecialchars($page_url) . '" class="inner-trang ' . $active_class . '">' . $i . '</a></li>';
+      }
+      ?>
+    </ul>
+  </div>
+</div>
 
     <?php if ($is_search && $total_products > 0): ?>
         <script>
@@ -340,8 +284,7 @@ $total_pages = ($total_products > 0) ? ceil($total_products / $limit) : 1;
         </script>
     <?php endif; ?>
 
-    <!-- Footer -->
-    <?php include_once "includes/footer.php"; ?>
+<?php include_once "includes/footer.php"; ?>
 
     <!-- JavaScript -->
     <script>
