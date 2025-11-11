@@ -2,7 +2,7 @@
 $sever = 'localhost';
 $user = 'root';
 $pass = '';
-$database = 'webbandoan5';
+$database = 'webbandoann';
 $conn = new mysqLi($sever, $user, $pass, $database);
 // if($conn){
 //     mysqLi_query($conn," SET NAMES 'utf8' ");

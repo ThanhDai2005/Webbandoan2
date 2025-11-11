@@ -243,7 +243,24 @@
         }
         $ma_gh = $row['MA_GH'];
         $tong_tien = $row['tong'];
+        // Lấy sản phẩm từ giỏ
+        $sql = "SELECT ct.MA_SP, ct.SO_LUONG, sp.GIA_CA
+        FROM chitietgiohang ct JOIN sanpham sp ON ct.MA_SP = sp.MA_SP
+        WHERE ct.MA_GH = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $ma_gh);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
+        $products_str = [];
+        while ($row = $result->fetch_assoc()) {
+            $products_str[] = $row['MA_SP'] . ':' . $row['SO_LUONG'] . ':' . $row['GIA_CA'];
+        }
+        $ghichu = implode(',', $products_str);  // Hoặc thêm user ghi chú: $ghichu_user . '||' . implode(...)
+        $stmt->close();
+
+        // Sau đó INSERT với $ghichu này
+    
         // BƯỚC 2: TẠO ĐƠN HÀNG
         $sql = "INSERT INTO donhang (MA_KH, TONG_TIEN, DIA_CHI, GHI_CHU, PHUONG_THUC, TINH_TRANG)
                 VALUES (?, ?, ?, ?, ?, 'Chưa xác nhận')";

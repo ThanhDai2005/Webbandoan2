@@ -129,22 +129,46 @@
         if (!$donhang) {
           echo '<div class="alert alert-danger text-center">Không tìm thấy đơn hàng!</div>';
         } else {
-          // ĐỌC DANH SÁCH SẢN PHẨM TỪ GHI_CHU (JSON)
-          $ghichu = $donhang['GHI_CHU'];
-          if (!empty($ghichu) && $ghichu[0] === '[') {
-            $items = json_decode($ghichu, true);
-            if (is_array($items)) {
-              foreach ($items as $item) {
-                $sanphams[] = [
-                  'HINH_ANH' => $item['img'] ?? 'assets/img/no-image.jpg',
-                  'TEN_SP' => $item['ten'] ?? 'Sản phẩm',
-                  'SO_LUONG' => $item['sl'] ?? 1,
-                  'GIA_CA' => $item['gia'] ?? 0,
-                  'THANH_TIEN' => ($item['sl'] ?? 1) * ($item['gia'] ?? 0)
+          // PARSE DANH SÁCH SẢN PHẨM TỪ GHI_CHU (định dạng "MA_SP:SL:GIA,MA_SP:SL:GIA")
+          $ghichu = trim($donhang['GHI_CHU']);
+          $items = [];
+          if (!empty($ghichu)) {
+            $parts = explode(',', $ghichu);
+            foreach ($parts as $part) {
+              $data = explode(':', trim($part));
+              if (count($data) === 3 && is_numeric($data[0]) && is_numeric($data[1]) && is_numeric($data[2])) {
+                $items[] = [
+                  'MA_SP' => (int) $data[0],
+                  'SO_LUONG' => (int) $data[1],
+                  'GIA_CA' => (int) $data[2]
                 ];
-                $tienHang += ($item['sl'] ?? 1) * ($item['gia'] ?? 0);
-                $soLuongMon += ($item['sl'] ?? 1);
               }
+            }
+          }
+
+          // QUERY SANPHAM ĐỂ LẤY TEN_SP, HINH_ANH
+          if (!empty($items)) {
+            $ma_sp_list = array_column($items, 'MA_SP');
+            $ma_sp_str = implode(',', $ma_sp_list);
+            $sql = "SELECT MA_SP, TEN_SP, HINH_ANH FROM sanpham WHERE MA_SP IN ($ma_sp_str)";
+            $result = $conn->query($sql);
+            $sp_info = [];
+            while ($row = $result->fetch_assoc()) {
+              $sp_info[$row['MA_SP']] = $row;
+            }
+
+            foreach ($items as $item) {
+              $info = $sp_info[$item['MA_SP']] ?? ['TEN_SP' => 'Sản phẩm không tồn tại', 'HINH_ANH' => 'assets/img/no-image.jpg'];
+              $thanh_tien = $item['SO_LUONG'] * $item['GIA_CA'];
+              $sanphams[] = [
+                'HINH_ANH' => $info['HINH_ANH'],
+                'TEN_SP' => $info['TEN_SP'],
+                'SO_LUONG' => $item['SO_LUONG'],
+                'GIA_CA' => $item['GIA_CA'],
+                'THANH_TIEN' => $thanh_tien
+              ];
+              $tienHang += $thanh_tien;
+              $soLuongMon += $item['SO_LUONG'];
             }
           }
         }
@@ -154,7 +178,7 @@
       <?php if ($donhang): ?>
         <div class="inner-chitiet">
           <div class="inner-tt">Chi tiết đơn hàng DH<?= sprintf("%04d", $donhang['MA_DH']) ?></div>
-          <div class="inner-vc">Ngày đặt: <?= date("d-m-Y H:i", strtotime($donhang['NGAY_TAO'])) ?></div>
+          <div class="inner-vc">Ngày đặt: <?= date("d-m-Y H:i:s", strtotime($donhang['NGAY_TAO'])) ?></div>
         </div>
 
         <div class="inner-trangthai">
@@ -187,7 +211,8 @@
               <div class="inner-ten">GHI CHÚ</div>
               <div class="inner-gth">
                 <div class="inner-ghichu">
-                  <?= $donhang['GHI_CHU'] === '' ? 'Không có' : htmlspecialchars($donhang['GHI_CHU']) ?></div>
+                  <?= empty($donhang['GHI_CHU']) ? 'Không có' : htmlspecialchars($donhang['GHI_CHU']) ?>
+                </div>
               </div>
             </div>
           </div>
@@ -203,7 +228,7 @@
                 </div>
                 <div class="inner-chu">
                   <div class="inner-ten"><?= htmlspecialchars($sp['TEN_SP']) ?></div>
-                  <div class="inner-sl">x<?= $sp['SO_LUONG'] ?></div>
+                  <div class="inner-sl">x<?= $sp['SO_LUONG'] ?> (<?= number_format($sp['GIA_CA'], 0, ',', '.') ?>₫)</div>
                 </div>
               </div>
               <div class="inner-gia"><?= number_format($sp['THANH_TIEN'], 0, ',', '.') ?>₫</div>
@@ -213,7 +238,7 @@
           <?php if (empty($sanphams)): ?>
             <div class="text-center text-muted py-4">
               <i class="fas fa-box-open fa-3x mb-3"></i>
-              <p>Không có sản phẩm nào trong đơn hàng.</p>
+              <p>Không có sản phẩm nào trong đơn hàng (hoặc dữ liệu cũ).</p>
             </div>
           <?php endif; ?>
 
