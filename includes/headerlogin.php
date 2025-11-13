@@ -91,23 +91,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                             <div class="cart-icon-menu">
                                 <i class="fa-light fa-basket-shopping"></i>
                                 <span class="count-product-cart">
-                                    <?php
-                                    include "connect.php";
-                                    if (isset($_SESSION['magh'])) {
-                                        $magh = $_SESSION['magh'];
-                                        $sql = "SELECT SUM(SO_LUONG) AS total_quantity FROM chitietgiohang WHERE MA_GH = ?";
-                                        $stmt = $conn->prepare($sql);
-                                        $stmt->bind_param("i", $magh);
-                                        $stmt->execute();
-                                        $result = $stmt->get_result();
-                                        $row = $result->fetch_assoc();
-                                        echo htmlspecialchars($row['total_quantity'] ?? 0);
-                                        $stmt->close();
-                                    } else {
-                                        echo "0";
-                                    }
-                                    ?>
-                                </span>
+    <?php
+    include "connect.php";
+    $total_quantity = 0;
+
+    if (isset($_SESSION['magh'])) {
+        $magh = $_SESSION['magh'];
+        $sql = "SELECT SUM(SO_LUONG) AS total_quantity FROM chitietgiohang WHERE MA_GH = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("i", $magh);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $total_quantity = $row['total_quantity'] ?? 0;
+        $stmt->close();
+    }
+
+    echo htmlspecialchars($total_quantity);
+    ?>
+</span>
+
                             </div>
                         </a>
                         <span>Giỏ hàng</span>

@@ -130,47 +130,26 @@
           echo '<div class="alert alert-danger text-center">Không tìm thấy đơn hàng!</div>';
         } else {
           // PARSE DANH SÁCH SẢN PHẨM TỪ GHI_CHU (định dạng "MA_SP:SL:GIA,MA_SP:SL:GIA")
-          $ghichu = trim($donhang['GHI_CHU']);
-          $items = [];
-          if (!empty($ghichu)) {
-            $parts = explode(',', $ghichu);
-            foreach ($parts as $part) {
-              $data = explode(':', trim($part));
-              if (count($data) === 3 && is_numeric($data[0]) && is_numeric($data[1]) && is_numeric($data[2])) {
-                $items[] = [
-                  'MA_SP' => (int) $data[0],
-                  'SO_LUONG' => (int) $data[1],
-                  'GIA_CA' => (int) $data[2]
-                ];
-              }
-            }
-          }
+          $sanphams = [];
+          $tienHang = 0;
+          $soLuongMon = 0;
 
-          // QUERY SANPHAM ĐỂ LẤY TEN_SP, HINH_ANH
-          if (!empty($items)) {
-            $ma_sp_list = array_column($items, 'MA_SP');
-            $ma_sp_str = implode(',', $ma_sp_list);
-            $sql = "SELECT MA_SP, TEN_SP, HINH_ANH FROM sanpham WHERE MA_SP IN ($ma_sp_str)";
-            $result = $conn->query($sql);
-            $sp_info = [];
-            while ($row = $result->fetch_assoc()) {
-              $sp_info[$row['MA_SP']] = $row;
-            }
+          $ma_gh = $donhang['MA_GH']; // lấy mã giỏ hàng của đơn này
+          $sql = "SELECT sp.TEN_SP, sp.HINH_ANH, sp.GIA_CA, ct.SO_LUONG, (ct.SO_LUONG * sp.GIA_CA) AS THANH_TIEN
+                  FROM chitietgiohang ct
+                  JOIN sanpham sp ON ct.MA_SP = sp.MA_SP
+                  WHERE ct.MA_GH = ?";
+          $stmt = $conn->prepare($sql);
+          $stmt->bind_param("i", $ma_gh);
+          $stmt->execute();
+          $result = $stmt->get_result();
 
-            foreach ($items as $item) {
-              $info = $sp_info[$item['MA_SP']] ?? ['TEN_SP' => 'Sản phẩm không tồn tại', 'HINH_ANH' => 'assets/img/no-image.jpg'];
-              $thanh_tien = $item['SO_LUONG'] * $item['GIA_CA'];
-              $sanphams[] = [
-                'HINH_ANH' => $info['HINH_ANH'],
-                'TEN_SP' => $info['TEN_SP'],
-                'SO_LUONG' => $item['SO_LUONG'],
-                'GIA_CA' => $item['GIA_CA'],
-                'THANH_TIEN' => $thanh_tien
-              ];
-              $tienHang += $thanh_tien;
-              $soLuongMon += $item['SO_LUONG'];
-            }
+          while ($row = $result->fetch_assoc()) {
+              $sanphams[] = $row;
+              $tienHang += $row['THANH_TIEN'];
+              $soLuongMon += $row['SO_LUONG'];
           }
+          $stmt->close();
         }
       }
       ?>

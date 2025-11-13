@@ -71,12 +71,14 @@
                       <input id="tanggiam" type="number" name="soluong" value="1" min="1" class="inner-so" />
                       <span onclick="tangsoluong()" class="inner-cong">+</span>
                     </div>
-                    <button type="submit" name="addProduct" class="inner-nut">
-                      Thêm vào giỏ hàng
-                    </button>
+                    <button type="submit" onclick="thongbao()" class="inner-nut" name="addProduct">
+                    Thêm vào giỏ hàng 
+                  </button>
                   </div>
                 </form>
               </div>
+            </div>
+          </div>
               <div class="col-xl-12">
                 <div class="inner-thongtin">
                   <div class="inner-nut"><button class="inner-mt inner-mt-active">Mô tả</button></div>
@@ -85,8 +87,6 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
         </div>
 
         <!-- PHẦN DỊCH VỤ -->
@@ -241,7 +241,10 @@
     $stmt_tong->bind_param("i", $ma_gh);
     $stmt_tong->execute();
 
-    echo "<script>alert('Đã thêm vào giỏ hàng!'); window.location='chitietsp-login.php?id=$masp';</script>";
+    $_SESSION['magh'] = $ma_gh;
+
+    echo "<script>window.location='chitietsp-login.php?id=$masp';</script>";
+
   }
   ?>
 
