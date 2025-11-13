@@ -142,7 +142,7 @@
                     </div>
                     <p class="text-muted mb-5">Hãy nhanh tay chọn ngay sản phẩm yêu thích.</p>
                     <div class="contant_box_404">
-                        <a class="link_404" href="index.php" data-discover="true">Mua ngay</a>
+                        <a class="link_404" href="login.php" data-discover="true">Mua ngay</a>
                     </div>
                 </div>
             <?php else: ?>
@@ -229,84 +229,75 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        $(document).ready(function () {
-            // Hàm chung: CẬP NHẬT + XÓA (gửi soluong = 0 để xóa)
-            function updateCart(masp, soluong) {
-                $.post('capnhat_giohang.php', {
-                    masp: masp,
-                    soluong: soluong
-                }, function (res) {
-                    if (res.status === 'success') {
-                        alert(res.message);
-                        location.reload();
-                    } else {
-                        alert(res.message);
-                    }
-                }, 'json');
+$(document).ready(function () {
+    function updateCart(masp, soluong) {
+        $.post('capnhat_giohang.php', { masp: masp, soluong: soluong }, function (res) {
+            if (res.status === 'success') {
+                // Reload trang để cập nhật giỏ hàng
+                location.reload();
             }
+        }, 'json');
+    }
 
-            // Tăng
-            $('.btn-increment').click(function () {
-                let row = $(this).closest('tr');
-                let input = row.find('.qty');
-                let qty = parseInt(input.val()) || 1;
-                input.val(qty + 1); // Cập nhật ngay
-                updateCart(row.data('id'), qty + 1);
-            });
+    // Tăng số lượng
+    $('.btn-increment').click(function () {
+        let row = $(this).closest('tr');
+        let input = row.find('.qty');
+        let qty = parseInt(input.val()) || 1;
+        qty += 1;
+        input.val(qty);
+        updateCart(row.data('id'), qty);
+    });
 
-            // Giảm
-            $('.btn-reduce').click(function () {
-                let row = $(this).closest('tr');
-                let input = row.find('.qty');
-                let qty = parseInt(input.val()) || 1;
-                if (qty > 1) {
-                    input.val(qty - 1); // CẬP NHẬT INPUT NGAY LẬP TỨC
-                    updateCart(row.data('id'), qty - 1);
-                }
-            });
+    // Giảm số lượng
+    $('.btn-reduce').click(function () {
+        let row = $(this).closest('tr');
+        let input = row.find('.qty');
+        let qty = parseInt(input.val()) || 1;
+        if (qty > 1) qty -= 1;
+        input.val(qty);
+        updateCart(row.data('id'), qty);
+    });
 
-            // Nhập số
-            $('.qty').change(function () {
-                let row = $(this).closest('tr');
-                let qty = parseInt($(this).val());
-                if (qty >= 1) {
-                    updateCart(row.data('id'), qty);
+    // Thay đổi trực tiếp số lượng
+    $('.qty').change(function () {
+        let row = $(this).closest('tr');
+        let qty = parseInt($(this).val());
+        if (qty < 1) qty = 1;
+        $(this).val(qty);
+        updateCart(row.data('id'), qty);
+    });
+
+    // Xóa sản phẩm
+    $('.remove').click(function () {
+        let row = $(this).closest('tr');
+        updateCart(row.data('id'), 0); // soluong = 0 => xóa
+    });
+
+    // Thanh toán
+    $('#checkout-form').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            url: 'checkvisible.php',
+            method: 'POST',
+            dataType: 'json',
+            success: function (res) {
+                if (res.status === 'error') {
+                    let msg = 'Các sản phẩm sau đã ngừng kinh doanh:\n\n';
+                    res.discontinued.forEach(item => msg += '- ' + item + '\n');
+                    alert(msg);
                 } else {
-                    $(this).val(1);
+                    $('#checkout-form').unbind('submit').submit();
                 }
-            });
-
-            // XÓA = GỬI soluong = 0
-            $('.remove').click(function () {
-                let row = $(this).closest('tr');
-                if (confirm('Xóa sản phẩm này khỏi giỏ hàng?')) {
-                    updateCart(row.data('id'), 0); // XÓA!
-                }
-            });
-
-            // Thanh toán
-            $('#checkout-form').submit(function (e) {
-                e.preventDefault();
-                $.ajax({
-                    url: 'checkvisible.php',
-                    method: 'POST',
-                    dataType: 'json',
-                    success: function (res) {
-                        if (res.status === 'error') {
-                            let msg = 'Các sản phẩm sau đã ngừng kinh doanh:\n\n';
-                            res.discontinued.forEach(item => msg += '- ' + item + '\n');
-                            alert(msg);
-                        } else {
-                            $('#checkout-form').unbind('submit').submit();
-                        }
-                    },
-                    error: function () {
-                        alert('Lỗi kiểm tra giỏ hàng!');
-                    }
-                });
-            });
+            },
+            error: function () {
+                alert('Lỗi kiểm tra giỏ hàng!');
+            }
         });
-    </script>
+    });
+});
+</script>
+
 </body>
 
 </html>

@@ -7,52 +7,51 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
-
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
       integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N"
       crossorigin="anonymous"
     />
-
     <link
       rel="stylesheet"
       href="assets/font-awesome-pro-v6-6.2.0/css/all.min.css"
     />
-
     <link rel="stylesheet" href="admin/css/style.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/admin.css" />
-
     <title>Admin</title>
     <link href="./assets/img/logo.png" rel="icon" type="image/x-icon" />
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #order-content, #order-content * {
+          visibility: visible;
+        }
+        #order-content {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .inner-capnhat, .inner-select {
+          display: none; /* Ẩn phần cập nhật trạng thái khi in */
+        }
+      }
+    </style>
   </head>
-
   <body>
       <?php
     include_once "./connect.php"; // Kết nối database
-
     // Lấy MA_DH từ URL
     $MA_DH = isset($_GET['madh']) ? intval($_GET['madh']) : 0;
-
-    // Truy vấn chi tiết đơn hàng
-    // Lưu ý: Cơ sở dữ liệu không có bảng chitietdonhang, nhưng giả định tồn tại tương tự chitietgiohang và điều chỉnh tên cột.
-    // Nếu cần, thêm bảng chitietdonhang với cấu trúc tương tự: MA_CTDH, MA_DH, MA_SP, SO_LUONG, GIA_BAN_LE (thêm nếu cần).
-    // Ở đây, sử dụng chitietgiohang và giả định MA_GH tương đương MA_DH cho mục đích liên kết (có thể cần điều chỉnh database).
-    // Để khớp, thay chitietdonhang bằng chitietgiohang, mactdh bằng MA_GH (nhưng không có), masp bằng MA_SP, soluong bằng SO_LUONG, giabanle bằng sp.GIA_CA (giá từ sanpham vì không có giabanle).
-    // Giả định MA_GH = MA_DH cho liên kết tạm thời.
-    $sql = "
-        SELECT 
-            ctgh.MA_GH AS mactdh, ctgh.MA_SP AS masp, ctgh.SO_LUONG AS soluong, sp.GIA_CA AS giabanle, 
-            sp.TEN_SP AS ten_sanpham, sp.HINH_ANH AS anh_sanpham,
-            dh.NGAY_TAO, dh.PHUONG_THUC, dh.GHI_CHU, dh.TINH_TRANG, dh.TONG_TIEN AS tongtien_dh,
-            kh.TEN_KH, kh.SO_DIEN_THOAI, dh.DIA_CHI
-        FROM chitietgiohang ctgh
-        JOIN sanpham sp ON ctgh.MA_SP = sp.MA_SP
-        JOIN donhang dh ON ctgh.MA_GH = dh.MA_DH  -- Giả định liên kết MA_GH = MA_DH (cần điều chỉnh nếu khác)
-        JOIN khachhang kh ON dh.MA_KH = kh.MA_KH
-        WHERE ctgh.MA_GH = ?
-    ";
+    // LẤY THÔNG TIN ĐƠN HÀNG
+    $sql = "SELECT dh.*, kh.TEN_KH, kh.SO_DIEN_THOAI
+            FROM donhang dh
+            JOIN khachhang kh ON dh.MA_KH = kh.MA_KH
+            WHERE dh.MA_DH = ?";
     $stmt = $conn->prepare($sql);
     if (!$stmt) {
       die("Lỗi prepare SQL: " . $conn->error);
@@ -60,17 +59,50 @@
     $stmt->bind_param("i", $MA_DH);
     $stmt->execute();
     $result = $stmt->get_result();
-
+    $order_info = $result->fetch_assoc();
+    $stmt->close();
     $order_details = [];
     $total_items = 0;
-    if ($result->num_rows > 0) {
-        while ($row = $result->fetch_assoc()) {
-            $order_details[] = $row;
-            $total_items += $row['soluong'];
+    $tongtien_dh = $order_info ? $order_info['TONG_TIEN'] : 0;
+    if ($order_info) {
+        // PARSE DANH SÁCH SẢN PHẨM TỪ GHI_CHU (định dạng "MA_SP:SL:GIA,MA_SP:SL:GIA")
+        $ghichu = trim($order_info['GHI_CHU']);
+        $items = [];
+        if (!empty($ghichu)) {
+            $parts = explode(',', $ghichu);
+            foreach ($parts as $part) {
+                $data = explode(':', trim($part));
+                if (count($data) === 3 && is_numeric($data[0]) && is_numeric($data[1]) && is_numeric($data[2])) {
+                    $items[] = [
+                        'MA_SP' => (int) $data[0],
+                        'SO_LUONG' => (int) $data[1],
+                        'GIA_CA' => (int) $data[2]
+                    ];
+                }
+            }
+        }
+        // QUERY SANPHAM ĐỂ LẤY TEN_SP, HINH_ANH
+        if (!empty($items)) {
+            $ma_sp_list = array_column($items, 'MA_SP');
+            $ma_sp_str = implode(',', $ma_sp_list);
+            $sql = "SELECT MA_SP, TEN_SP, HINH_ANH FROM sanpham WHERE MA_SP IN ($ma_sp_str)";
+            $result = $conn->query($sql);
+            $sp_info = [];
+            while ($row = $result->fetch_assoc()) {
+                $sp_info[$row['MA_SP']] = $row;
+            }
+            foreach ($items as $item) {
+                $info = $sp_info[$item['MA_SP']] ?? ['TEN_SP' => 'Sản phẩm không tồn tại', 'HINH_ANH' => 'assets/img/no-image.jpg'];
+                $order_details[] = [
+                    'ten_sanpham' => $info['TEN_SP'],
+                    'anh_sanpham' => $info['HINH_ANH'],
+                    'soluong' => $item['SO_LUONG'],
+                    'giabanle' => $item['GIA_CA']
+                ];
+                $total_items += $item['SO_LUONG'];
+            }
         }
     }
-    $order_info = $order_details[0] ?? null; // Lấy thông tin đơn hàng từ dòng đầu tiên
-
     // Phí vận chuyển mặc định
     $phi_van_chuyen = 0;
     ?>
@@ -117,7 +149,6 @@
             >
           </li>
         </ul>
-
         <ul class="sidebar-list">
          <!-- Assuming this is part of a larger admin.php file -->
           <li class="sidebar-list-item user-logout">
@@ -126,7 +157,6 @@
               <div class="hidden-sidebar" id="name-acc">Khoa</div>
             </a>
           </li>
-
           <script>
             // Function to get cookie by name
             function getCookie(name) {
@@ -143,7 +173,6 @@
               }
               return null;
             }
-
             // Update username display from cookie
             window.onload = function() {
               const username = getCookie("username");
@@ -161,11 +190,9 @@
           </li>
         </ul>
       </nav>
-
       <script>
   const sidebarItems = document.querySelectorAll('#sidebar .components li');
   const currentPath = window.location.pathname;
-
   // Kiểm tra URL hiện tại để đặt "active" khi tải trang
   sidebarItems.forEach(item => {
     const link = item.querySelector('a').getAttribute('href');
@@ -173,7 +200,6 @@
       sidebarItems.forEach(i => i.classList.remove('active'));
       item.classList.add('active');
     }
-
     // Xử lý sự kiện click
     item.addEventListener('click', function() {
       sidebarItems.forEach(i => i.classList.remove('active'));
@@ -247,7 +273,7 @@
                                     <?php if ($order_info): ?>
                                         <div class="inner-tien">
                                             <div class="inner-th">Tiền hàng <span><?php echo $total_items; ?> món</span></div>
-                                            <div class="inner-st"><?= number_format($order_info['tongtien_dh'], 0, ',', '.') ?>₫</div>
+                                            <div class="inner-st"><?= number_format($tongtien_dh, 0, ',', '.') ?>₫</div>
                                             </div>
                                         <div class="inner-vanchuyen">
                                             <span class="inner-vc1">Vận chuyển</span>
@@ -256,14 +282,13 @@
                                         <div class="inner-tonggia">
                                             <div class="inner-giaca">
                                                 <div class="inner-chu">Thành tiền</div>
-                                                <div class="inner-so"><?= number_format($order_info['tongtien_dh'] + $phi_van_chuyen, 0, ',', '.') ?>₫</div>
+                                                <div class="inner-so"><?= number_format($tongtien_dh + $phi_van_chuyen, 0, ',', '.') ?>₫</div>
                                             </div>
                                             <div class="inner-select">
                                           <label for="select">Trạng thái</label>
                                           <select name="trangthai" id="select">
                                               <?php
                                               $currentStatus = $order_info['TINH_TRANG'];
-
                                               if ($currentStatus == 'Chưa xác nhận') {
                                                   echo '<option value="Chưa xác nhận" selected>Chưa xác nhận</option>';
                                                   echo '<option value="Đã xác nhận">Đã xác nhận</option>';
@@ -326,6 +351,5 @@
   </body>
 </html>
 <?php
-$stmt->close();
 $conn->close();
 ?>

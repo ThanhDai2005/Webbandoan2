@@ -1,18 +1,22 @@
 <?php
 session_start();
 
-// Database connection
+// Kết nối CSDL
 try {
-    $pdo = new PDO("mysql:host=127.0.0.1;dbname=webbandoan5;charset=utf8", "root", "");
+    $pdo = new PDO("mysql:host=127.0.0.1;dbname=webbandoan6;charset=utf8", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+    die("Lỗi kết nối: " . $e->getMessage());
 }
 
-// Get MA_DH from URL
+// Lấy mã đơn hàng từ URL
 $MA_DH = isset($_GET['madh']) ? (int)$_GET['madh'] : 0;
 
-// Fetch order details
+if ($MA_DH <= 0) {
+    die("Mã đơn hàng không hợp lệ.");
+}
+
+// Lấy thông tin đơn hàng
 $sql_order = "
     SELECT 
         d.MA_DH AS orderId,
@@ -27,14 +31,28 @@ $sql_order = "
         d.TINH_TRANG AS shippingStatus
     FROM donhang d
     JOIN khachhang k ON d.MA_KH = k.MA_KH
-    WHERE d.MA_DH = :MA_DH AND d.TINH_TRANG = 'Đã giao thành công'
+    WHERE d.MA_DH = :MA_DH
 ";
 $stmt_order = $pdo->prepare($sql_order);
 $stmt_order->bindValue(':MA_DH', $MA_DH, PDO::PARAM_INT);
 $stmt_order->execute();
 $order = $stmt_order->fetch(PDO::FETCH_ASSOC);
 
-// Fetch order items
+if (!$order) {
+    die("Không tìm thấy hóa đơn này.");
+}
+
+// 🔧 Giả sử mỗi đơn hàng tương ứng với 1 giỏ hàng có cùng MA_KH
+// => ta cần lấy sản phẩm từ giỏ hàng gần nhất của khách đó
+$sql_get_cart = "SELECT MA_GH FROM giohang WHERE MA_KH = :MA_KH ORDER BY MA_GH DESC LIMIT 1";
+$stmt_cart = $pdo->prepare($sql_get_cart);
+$stmt_cart->bindValue(':MA_KH', $order['customerId'], PDO::PARAM_INT);
+$stmt_cart->execute();
+$cart = $stmt_cart->fetch(PDO::FETCH_ASSOC);
+
+$MA_GH = $cart ? $cart['MA_GH'] : 0;
+
+// Lấy sản phẩm trong giỏ hàng tương ứng
 $sql_items = "
     SELECT 
         s.TEN_SP AS product,
@@ -43,17 +61,17 @@ $sql_items = "
         s.GIA_CA AS price
     FROM chitietgiohang ct
     JOIN sanpham s ON ct.MA_SP = s.MA_SP
-    WHERE ct.MA_GH = :MA_DH
+    WHERE ct.MA_GH = :MA_GH
 ";
 $stmt_items = $pdo->prepare($sql_items);
-$stmt_items->bindValue(':MA_DH', $MA_DH, PDO::PARAM_INT);
+$stmt_items->bindValue(':MA_GH', $MA_GH, PDO::PARAM_INT);
 $stmt_items->execute();
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-// Calculate totals
+// Tính tổng tiền
 $itemCount = array_sum(array_column($items, 'quantity'));
-$subtotal = array_sum(array_map(function($item) { return $item['quantity'] * $item['price']; }, $items));
-$shippingCost = 0; // Fixed shipping cost set to 0
+$subtotal = array_sum(array_map(fn($i) => $i['quantity'] * $i['price'], $items));
+$shippingCost = 0;
 $total = $subtotal + $shippingCost;
 ?>
 
