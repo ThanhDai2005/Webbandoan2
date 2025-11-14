@@ -3,7 +3,7 @@ session_start();
 
 // Kết nối CSDL
 try {
-    $pdo = new PDO("mysql:host=127.0.0.1;dbname=webbandoan6;charset=utf8", "root", "");
+    $pdo = new PDO("mysql:host=127.0.0.1;dbname=webbandoan8;charset=utf8", "root", "");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     die("Lỗi kết nối: " . $e->getMessage());
@@ -42,31 +42,54 @@ if (!$order) {
     die("Không tìm thấy hóa đơn này.");
 }
 
-// 🔧 Giả sử mỗi đơn hàng tương ứng với 1 giỏ hàng có cùng MA_KH
-// => ta cần lấy sản phẩm từ giỏ hàng gần nhất của khách đó
-$sql_get_cart = "SELECT MA_GH FROM giohang WHERE MA_KH = :MA_KH ORDER BY MA_GH DESC LIMIT 1";
-$stmt_cart = $pdo->prepare($sql_get_cart);
-$stmt_cart->bindValue(':MA_KH', $order['customerId'], PDO::PARAM_INT);
-$stmt_cart->execute();
-$cart = $stmt_cart->fetch(PDO::FETCH_ASSOC);
-
-$MA_GH = $cart ? $cart['MA_GH'] : 0;
-
-// Lấy sản phẩm trong giỏ hàng tương ứng
+// Lấy chi tiết sản phẩm từ chitietdonhang (ưu tiên)
 $sql_items = "
     SELECT 
         s.TEN_SP AS product,
         s.HINH_ANH AS image,
         ct.SO_LUONG AS quantity,
-        s.GIA_CA AS price
-    FROM chitietgiohang ct
+        ct.GIA_LUC_MUA AS price
+    FROM chitietdonhang ct
     JOIN sanpham s ON ct.MA_SP = s.MA_SP
-    WHERE ct.MA_GH = :MA_GH
+    WHERE ct.MA_DH = :MA_DH
 ";
 $stmt_items = $pdo->prepare($sql_items);
-$stmt_items->bindValue(':MA_GH', $MA_GH, PDO::PARAM_INT);
+$stmt_items->bindValue(':MA_DH', $MA_DH, PDO::PARAM_INT);
 $stmt_items->execute();
 $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
+
+// Nếu không có chitietdonhang, fallback parse GHI_CHU
+if (empty($items) && !empty($order['note'])) {
+    $ghichu = trim($order['note']);
+    $ghichu = str_replace('|| ', '', $ghichu);
+    $parts = explode(',', $ghichu);
+    $ma_sp_list = [];
+    $temp_items = [];
+    foreach ($parts as $part) {
+        $data = explode(':', trim($part));
+        if (count($data) >= 3 && is_numeric($data[0])) {
+            $ma_sp = (int)$data[0];
+            $ma_sp_list[] = $ma_sp;
+            $temp_items[$ma_sp] = ['quantity' => (int)$data[1], 'price' => (int)$data[2]];
+        }
+    }
+
+    if (!empty($ma_sp_list)) {
+        $placeholders = implode(',', array_fill(0, count($ma_sp_list), '?'));
+        $sql_sp = "SELECT MA_SP, TEN_SP AS product, HINH_ANH AS image FROM sanpham WHERE MA_SP IN ($placeholders)";
+        $stmt_sp = $pdo->prepare($sql_sp);
+        $stmt_sp->execute($ma_sp_list);
+        while ($sp = $stmt_sp->fetch(PDO::FETCH_ASSOC)) {
+            $info = $temp_items[$sp['MA_SP']];
+            $items[] = [
+                'product' => $sp['product'],
+                'image' => $sp['image'],
+                'quantity' => $info['quantity'],
+                'price' => $info['price']
+            ];
+        }
+    }
+}
 
 // Tính tổng tiền
 $itemCount = array_sum(array_column($items, 'quantity'));
