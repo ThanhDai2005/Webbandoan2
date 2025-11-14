@@ -65,41 +65,63 @@
     $total_items = 0;
     $tongtien_dh = $order_info ? $order_info['TONG_TIEN'] : 0;
     if ($order_info) {
-        // PARSE DANH SÁCH SẢN PHẨM TỪ GHI_CHU (định dạng "MA_SP:SL:GIA,MA_SP:SL:GIA")
-        $ghichu = trim($order_info['GHI_CHU']);
-        $items = [];
-        if (!empty($ghichu)) {
-            $parts = explode(',', $ghichu);
-            foreach ($parts as $part) {
-                $data = explode(':', trim($part));
-                if (count($data) === 3 && is_numeric($data[0]) && is_numeric($data[1]) && is_numeric($data[2])) {
-                    $items[] = [
-                        'MA_SP' => (int) $data[0],
-                        'SO_LUONG' => (int) $data[1],
-                        'GIA_CA' => (int) $data[2]
-                    ];
+        // SỬ DỤNG BẢNG chitietdonhang ĐỂ LẤY CHI TIẾT SẢN PHẨM (THEO CSDL MỚI)
+        $sql_details = "SELECT ctdh.MA_SP, ctdh.SO_LUONG, ctdh.GIA_LUC_MUA, sp.TEN_SP, sp.HINH_ANH 
+                        FROM chitietdonhang ctdh
+                        JOIN sanpham sp ON ctdh.MA_SP = sp.MA_SP
+                        WHERE ctdh.MA_DH = ?";
+        $stmt_details = $conn->prepare($sql_details);
+        $stmt_details->bind_param("i", $MA_DH);
+        $stmt_details->execute();
+        $result_details = $stmt_details->get_result();
+        while ($row_detail = $result_details->fetch_assoc()) {
+            $order_details[] = [
+                'ten_sanpham' => $row_detail['TEN_SP'],
+                'anh_sanpham' => $row_detail['HINH_ANH'],
+                'soluong' => $row_detail['SO_LUONG'],
+                'giabanle' => $row_detail['GIA_LUC_MUA']
+            ];
+            $total_items += $row_detail['SO_LUONG'];
+        }
+        $stmt_details->close();
+        
+        // Nếu không có chi tiết từ chitietdonhang, fallback sang GHI_CHU (cho dữ liệu cũ)
+        if (empty($order_details)) {
+            $ghichu = trim($order_info['GHI_CHU']);
+            $items = [];
+            if (!empty($ghichu)) {
+                $parts = explode(',', $ghichu);
+                foreach ($parts as $part) {
+                    $data = explode(':', trim($part));
+                    if (count($data) === 3 && is_numeric($data[0]) && is_numeric($data[1]) && is_numeric($data[2])) {
+                        $items[] = [
+                            'MA_SP' => (int) $data[0],
+                            'SO_LUONG' => (int) $data[1],
+                            'GIA_CA' => (int) $data[2]
+                        ];
+                    }
                 }
             }
-        }
-        // QUERY SANPHAM ĐỂ LẤY TEN_SP, HINH_ANH
-        if (!empty($items)) {
-            $ma_sp_list = array_column($items, 'MA_SP');
-            $ma_sp_str = implode(',', $ma_sp_list);
-            $sql = "SELECT MA_SP, TEN_SP, HINH_ANH FROM sanpham WHERE MA_SP IN ($ma_sp_str)";
-            $result = $conn->query($sql);
-            $sp_info = [];
-            while ($row = $result->fetch_assoc()) {
-                $sp_info[$row['MA_SP']] = $row;
-            }
-            foreach ($items as $item) {
-                $info = $sp_info[$item['MA_SP']] ?? ['TEN_SP' => 'Sản phẩm không tồn tại', 'HINH_ANH' => 'assets/img/no-image.jpg'];
-                $order_details[] = [
-                    'ten_sanpham' => $info['TEN_SP'],
-                    'anh_sanpham' => $info['HINH_ANH'],
-                    'soluong' => $item['SO_LUONG'],
-                    'giabanle' => $item['GIA_CA']
-                ];
-                $total_items += $item['SO_LUONG'];
+            // QUERY SANPHAM ĐỂ LẤY TEN_SP, HINH_ANH
+            if (!empty($items)) {
+                $ma_sp_list = array_column($items, 'MA_SP');
+                $ma_sp_str = implode(',', $ma_sp_list);
+                $sql_sp = "SELECT MA_SP, TEN_SP, HINH_ANH FROM sanpham WHERE MA_SP IN ($ma_sp_str)";
+                $result_sp = $conn->query($sql_sp);
+                $sp_info = [];
+                while ($row_sp = $result_sp->fetch_assoc()) {
+                    $sp_info[$row_sp['MA_SP']] = $row_sp;
+                }
+                foreach ($items as $item) {
+                    $info = $sp_info[$item['MA_SP']] ?? ['TEN_SP' => 'Sản phẩm không tồn tại', 'HINH_ANH' => 'assets/img/no-image.jpg'];
+                    $order_details[] = [
+                        'ten_sanpham' => $info['TEN_SP'],
+                        'anh_sanpham' => $info['HINH_ANH'],
+                        'soluong' => $item['SO_LUONG'],
+                        'giabanle' => $item['GIA_CA']
+                    ];
+                    $total_items += $item['SO_LUONG'];
+                }
             }
         }
     }
